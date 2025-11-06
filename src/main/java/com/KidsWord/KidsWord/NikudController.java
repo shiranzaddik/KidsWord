@@ -11,7 +11,7 @@ import java.util.Map;
 @RestController
 public class NikudController {
     @GetMapping("/check-nikud")
-    public String checkNikud(@RequestParam String word, @RequestParam String nikudType) {
+    public String checkNikud(@RequestParam String word, @RequestParam List<String> nikudTypes) {
         String apiUrl = "https://nakdan-u1-0.loadbalancer.dicta.org.il/api";
         RestTemplate restTemplate = new RestTemplate();
 
@@ -45,24 +45,24 @@ public class NikudController {
                     .map(opt -> (String) opt.get("w"))
                     .filter(w -> w != null && !w.isEmpty())
                     .map(this::cleanUnnecessaryNikudWord)
-                    .map(this::findFirstNikudWord)
-                    .findFirst()
-                    .map(firstNikud -> switch (nikudType) {
-                        case "חיריק" -> firstNikud.contains("ִ");
-                        case "פתח" -> firstNikud.contains("ַ");
-                        case "קמץ" -> firstNikud.contains("ָ");
-                        case "צירה" -> firstNikud.contains("ֵ");
-                        case "סגול" -> firstNikud.contains("ֶ");
-                        case "שורוק" -> firstNikud.equals("וּ");
-                        case "קובוץ" -> firstNikud.contains("ֻ");
-                        case "חולם" -> firstNikud.equals("וֹ") || firstNikud.contains("ֹ");
+                    .map(this::findFirstNikudWord).findFirst()
+                    .map(firstNikudFromNakdan ->
+                            nikudTypes.stream().anyMatch(type -> switch (type) {
+                        case "חיריק" -> firstNikudFromNakdan.contains("ִ");
+                        case "פתח" -> firstNikudFromNakdan.contains("ַ");
+                        case "קמץ" -> firstNikudFromNakdan.contains("ָ");
+                        case "צירה" -> firstNikudFromNakdan.contains("ֵ");
+                        case "סגול" -> firstNikudFromNakdan.contains("ֶ");
+                        case "שורוק" -> firstNikudFromNakdan.equals("וּ");
+                        case "קובוץ" -> firstNikudFromNakdan.contains("ֻ");
+                        case "חולם" -> firstNikudFromNakdan.equals("וֹ") || firstNikudFromNakdan.contains("ֹ");
                         default -> false;
-                    })
+                    }))
                     .orElse(false);
 
             return found
-                    ? "✅ נכון! המילה \"" + word + "\" *מתחילה* ב" + nikudType
-                    : "❌ לא, המילה \"" + word + "\" לא מתחילה ב" + nikudType;
+                    ? String.format("✅ נכון! המילה \"%s\" מתחילה באחד מהניקודים: %s", word, String.join(", ", nikudTypes))
+                    : String.format("❌ לא. המילה \"%s\" לא מתחילה באף אחד מהניקודים: %s", word, String.join(", ", nikudTypes));
 
         } catch (Exception e) {
             return "⚠️ שגיאה: " + e.getMessage();
