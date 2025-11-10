@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>משחק הניקוד</title>
+    <style>
+        body {
+          font-family: "Assistant", sans-serif;
+          background: linear-gradient(135deg, #f6f7fb, #e3f2fd);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          height: 100vh;
+          margin: 0;
+        }
+        .game {
+          background: white;
+          padding: 2rem;
+          border-radius: 20px;
+          box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+          width: 380px;
+          text-align: center;
+          transition: 0.3s;
+        }
+        h2 {
+          color: #333;
+        }
+        select, input, button {
+          width: 100%;
+          padding: 0.8rem;
+          font-size: 1rem;
+          margin: 0.5rem 0;
+          border-radius: 10px;
+          border: 1px solid #ccc;
+        }
+        button {
+          background: #2196f3;
+          color: white;
+          border: none;
+          cursor: pointer;
+          transition: 0.2s;
+        }
+        button:hover {
+          background: #1976d2;
+        }
+        .result {
+          margin-top: 1rem;
+          font-size: 1.2rem;
+          font-weight: bold;
+          min-height: 1.5rem;
+        }
+        .counter {
+          margin-top: 0.5rem;
+          color: #555;
+          font-size: 1rem;
+        }
+        .win {
+          font-size: 1.5rem;
+          color: #4caf50;
+          font-weight: bold;
+          animation: pop 0.6s ease;
+        }
+        @keyframes pop {
+          0% { transform: scale(0.8); opacity: 0; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+<div class="game">
+    <h2>🎯 משחק הניקוד</h2>
+    <label>בחר ניקוד אחד או יותר:</label>
+    <select id="nikudTypes" multiple>
+        <option value="חיריק">חיריק</option>
+        <option value="פתח">פתח</option>
+        <option value="קמץ">קמץ</option>
+        <option value="צירה">צירה</option>
+        <option value="סגול">סגול</option>
+        <option value="שורוק">שורוק</option>
+        <option value="קובוץ">קובוץ</option>
+        <option value="חולם">חולם</option>
+    </select>
+
+    <input id="wordInput" placeholder="הקלד מילה שמתחילה בניקוד הזה..." />
+    <button onclick="checkWord()">בדוק מילה</button>
+
+    <div class="result" id="result"></div>
+    <div class="counter" id="counter">מילים נכונות: 0 / 10</div>
+
+    <h3>רשימת מילים נכונות:</h3>
+    <ul id="correctWordsList"></ul>
+</div>
+
+<script>
+    let correctCount = 0;
+    const usedWords = new Set(); // נשמור כאן את המילים שכבר התקבלו כנכונות
+
+    async function checkWord() {
+      const word = document.getElementById("wordInput").value.trim();
+      const select = document.getElementById("nikudTypes");
+      const nikudTypes = Array.from(select.selectedOptions).map(o => o.value);
+      const resultDiv = document.getElementById("result");
+
+      if (!word) {
+        resultDiv.textContent = "❗ הכנס מילה";
+        return;
+      }
+      if (nikudTypes.length === 0) {
+        resultDiv.textContent = "❗ בחר לפחות ניקוד אחד";
+        return;
+      }
+
+      // בדיקה אם כבר השתמשו במילה
+      if (usedWords.has(word)) {
+        resultDiv.textContent = "⚠️ כבר הקלדת את המילה הזו! נסה מילה אחרת.";
+        document.getElementById("wordInput").value = "";
+        return;
+      }
+
+      const params = new URLSearchParams({ word });
+      nikudTypes.forEach(nikud => params.append("nikudTypes", nikud));
+
+      try {
+        const res = await fetch(`/check-nikud?${params.toString()}`);
+        const text = await res.text();
+
+        if (text.includes("✅")) {
+          correctCount++;
+          usedWords.add(word); // שומרים את המילה רק אם הייתה נכונה
+          resultDiv.textContent = "✅ נכון! כל הכבוד!";
+        } else {
+          resultDiv.textContent = "❌ לא נכון, נסה שוב.";
+        }
+
+        document.getElementById("counter").textContent = `מילים נכונות: ${correctCount} / 10`;
+
+        if (correctCount >= 10) {
+          resultDiv.innerHTML = "<div class='win'>🏆 ניצחת! כל הכבוד!</div>";
+          correctCount = 0;
+          usedWords.clear(); // איפוס לסיבוב חדש
+        }
+      } catch (err) {
+        resultDiv.textContent = "⚠️ שגיאה בחיבור לשרת";
+      }
+
+      document.getElementById("wordInput").value = "";
+      document.getElementById("wordInput").focus();
+    }
+</script>
+</body>
+</html>
